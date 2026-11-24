@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Taiwan Trip 2026 - 台灣之旅</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            theme: {
+              mint: '#CFE7E5',       // Soft Mint Teal
+              mintDark: '#A8D5D1',   // Medium Mint Accent
+              gold: '#E5A13E',       // Warm Amber Gold
+              dark: '#213638',       // Deep Dark Slate/Teal (Text & Primary UI)
+              bg: '#F7F9F8',         // Clean Warm Off-white
+              card: '#FFFFFF',       // Pure White
+              muted: '#EAEFEF'       // Soft Neutral Grey
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-theme-bg text-theme-dark font-sans antialiased pb-24 selection:bg-theme-mint selection:text-theme-dark">
+
+  <!-- TOP HEADER -->
+  <header class="bg-white/95 backdrop-blur-md border-b border-gray-200/60 sticky top-0 z-50 shadow-sm">
+    <div class="max-w-md mx-auto px-4 py-3 flex justify-between items-center">
+      <div>
+        <h1 id="app-header-title" class="text-base font-bold text-theme-dark">🇹🇼 2026 台灣旅遊行程</h1>
+        <p id="app-header-sub" class="text-[11px] text-gray-500 font-medium">11月26日 - 12月05日 • 10天之旅</p>
+      </div>
+      <button onclick="toggleLanguage()" class="bg-theme-mint text-theme-dark text-xs px-3 py-1.5 rounded-full font-bold transition hover:opacity-90 shadow-sm">
+        <span id="lang-btn-text">EN / 繁中</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN APP CONTAINER -->
+  <main class="max-w-md mx-auto p-4">
+
+    <!-- LOADING / ERROR STATE -->
+    <div id="loading-state" class="text-center py-20">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-theme-mint border-t-theme-dark mb-3"></div>
+      <p id="loading-text" class="text-xs text-gray-500 font-bold">載入行程與即時天氣中...</p>
+    </div>
+
+    <div id="error-state" class="hidden bg-red-50 border border-red-200 text-red-700 p-4 rounded-2xl text-center my-8">
+      <p class="font-bold mb-1 text-sm">資料載入失敗</p>
+      <p id="error-message" class="text-xs">請檢查 Google Apps Script 網址是否正確。</p>
+    </div>
+
+    <!-- CONTENT VIEWS -->
+    <div id="app-content" class="hidden space-y-6">
+
+      <!-- ================= VIEW 1: HOME (MAP + SUMMARY + LINKS) ================= -->
+      <section id="view-home" class="view-section space-y-5">
+        
+        <!-- Live Weather Widget Banner -->
+        <div class="bg-gradient-to-r from-[#3B7A82] to-[#213638] text-white p-4 rounded-3xl shadow-sm space-y-2 border border-white/10">
+          <div class="flex justify-between items-center">
+            <h3 id="txt-weather-title" class="text-xs font-bold uppercase tracking-wider text-theme-mint">🌤️ 即時天氣預報</h3>
+            <span class="text-[10px] bg-white/10 text-theme-mint px-2 py-0.5 rounded-full" id="weather-status" data-i18n="weatherUpdated">已更新</span>
+          </div>
+          <div id="weather-widget-container" class="grid grid-cols-5 gap-1.5 pt-1">
+            <!-- Dynamically populated weather cards -->
+          </div>
+        </div>
+
+        <!-- Interactive Taiwan Map Card -->
+        <div class="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 text-center space-y-2">
+          <h2 id="txt-map-title" class="text-sm font-bold text-theme-dark">🗺️ 台灣環島路線圖</h2>
+          <p id="txt-map-sub" class="text-[11px] text-gray-500">點擊標籤查看城市細節</p>
+          
+          <!-- Taiwan SVG Map -->
+          <div class="relative w-full max-w-[320px] mx-auto h-[400px] flex items-center justify-center py-2">
+            <svg viewBox="0 0 500 700" class="w-full h-full drop-shadow-sm" xmlns="http://www.w3.org/2000/svg">
+              <path d="M 260 50 C 330 65, 390 120, 390 200 C 390 260, 440 340, 390 440 C 360 520, 290 600, 260 630 C 240 660, 200 680, 170 650 C 140 620, 120 540, 110 470 C 100 390, 140 310, 170 240 C 200 170, 210 110, 240 50 Z" 
+                    fill="#CFE7E5" opacity="0.45" stroke="#A8D5D1" stroke-width="3" stroke-linejoin="round"/>
+              <path d="M 265 130 L 335 170 L 320 330 L 255 120 L 195 460 L 165 590 L 150 530" 
+                    fill="none" stroke="#E5A13E" stroke-width="3" stroke-dasharray="6 4" opacity="0.9"/>
+            </svg>
+
+            <!-- Pins -->
+            <button onclick="switchView('location-detail', 'taipei')" class="absolute top-[15%] left-[49%] group flex flex-col items-center z-10">
+              <span class="bg-theme-dark text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md group-hover:scale-105 transition border border-theme-mint" data-map-pin="taipei">台北</span>
+              <span class="text-base leading-none -mt-0.5">📍</span>
+            </button>
+
+            <button onclick="switchView('location-detail', 'jiufen')" class="absolute top-[23%] left-[71%] group flex flex-col items-center z-10">
+              <span class="bg-theme-gold text-theme-dark text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md group-hover:scale-105 transition" data-map-pin="jiufen">九份</span>
+              <span class="text-base leading-none -mt-0.5">📍</span>
+            </button>
+
+            <button onclick="switchView('location-detail', 'beitou')" class="absolute top-[18%] left-[24%] group flex flex-col items-center z-10">
+              <span class="bg-theme-mint text-theme-dark text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md group-hover:scale-105 transition" data-map-pin="beitou">北投</span>
+              <span class="text-base leading-none -mt-0.5">♨️</span>
+            </button>
+
+            <button onclick="switchView('location-detail', 'hualien')" class="absolute top-[45%] left-[64%] group flex flex-col items-center z-10">
+              <span class="bg-theme-dark text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md group-hover:scale-105 transition border border-theme-mint" data-map-pin="hualien">花蓮</span>
+              <span class="text-base leading-none -mt-0.5">🌊</span>
+            </button>
+
+            <button onclick="switchView('location-detail', 'tainan')" class="absolute top-[66%] left-[30%] group flex flex-col items-center z-10">
+              <span class="bg-theme-mint text-theme-dark text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md group-hover:scale-105 transition" data-map-pin="tainan">臺南</span>
+              <span class="text-base leading-none -mt-0.5">🏛️</span>
+            </button>
+
+            <button onclick="switchView('location-detail', 'kaohsiung')" class="absolute top-[78%] left-[23%] group flex flex-col items-center z-10">
+              <span class="bg-theme-dark text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md group-hover:scale-105 transition border border-theme-mint" data-map-pin="kaohsiung">高雄</span>
+              <span class="text-base leading-none -mt-0.5">🏙️</span>
+            </button>
+
+            <button onclick="switchView('location-detail', 'kenting')" class="absolute top-[88%] left-[42%] group flex flex-col items-center z-10">
+              <span class="bg-theme-gold text-theme-dark text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md group-hover:scale-105 transition" data-map-pin="kenting">墾丁</span>
+              <span class="text-base leading-none -mt-0.5">☀️</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Location Summary Cards Below Map -->
+        <div>
+          <h2 id="txt-locations-header" class="text-sm font-bold text-theme-dark mb-3 px-1">沿途城市與景點</h2>
+          <div id="home-locations-list" class="space-y-3">
+            <!-- Dynamically populated cards -->
+          </div>
+        </div>
+
+        <!-- Categorized Useful Links Section -->
+        <div>
+          <h2 id="txt-links-header" class="text-sm font-bold text-theme-dark mb-3 px-1">🔗 實用旅遊連結</h2>
+          <div id="home-links-list" class="space-y-4">
+            <!-- Dynamically populated categorized links -->
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ================= VIEW 2: ITINERARY (CONTINUOUS SCROLL) ================= -->
+      <section id="view-itinerary" class="view-section hidden space-y-4">
+        
+        <!-- Hide-on-scroll Day Selector Bar -->
+        <div id="itin-day-pills-bar" class="sticky top-[53px] z-40 bg-theme-bg/95 backdrop-blur-md pt-2 pb-3 -mx-4 px-4 border-b border-gray-200/60 shadow-sm transition-transform duration-300">
+          <div id="itin-day-pills-container" class="flex space-x-2 overflow-x-auto no-scrollbar">
+            <!-- Dynamically generated day pills -->
+          </div>
+        </div>
+
+        <!-- Continuous Day-by-Day Flow List -->
+        <div id="continuous-itinerary-container" class="space-y-8 pt-2">
+          <!-- Dynamically populated with all days -->
+        </div>
+
+      </section>
+
+      <!-- ================= VIEW 3: TRANSPORT HUB (CONTINUOUS SCROLL) ================= -->
+      <section id="view-transport" class="view-section hidden space-y-4">
+        
+        <!-- Hide-on-scroll Transport Day Selector Bar -->
+        <div id="trans-day-pills-bar" class="sticky top-[53px] z-40 bg-theme-bg/95 backdrop-blur-md pt-2 pb-3 -mx-4 px-4 border-b border-gray-200/60 shadow-sm transition-transform duration-300">
+          <div id="trans-day-pills-container" class="flex space-x-2 overflow-x-auto no-scrollbar">
+            <!-- Dynamically generated transport day pills -->
+          </div>
+        </div>
+
+        <h2 id="txt-transport-page-title" class="text-sm font-bold text-theme-dark px-1 pt-1" data-i18n="transportPageTitle">完整交通行程表</h2>
+        
+        <div id="continuous-transport-container" class="space-y-8">
+          <!-- Dynamically populated continuous transport legs -->
+        </div>
+      </section>
+
+      <!-- ================= VIEW 4: LOCATION DETAIL VIEW ================= -->
+      <section id="view-location-detail" class="view-section hidden space-y-4">
+        <button onclick="switchView('home')" class="text-xs text-theme-dark font-bold flex items-center mb-1">
+          ← <span id="txt-back-home" class="ml-1" data-i18n="backHome">返回首頁地圖</span>
+        </button>
+        <div id="location-detail-container" class="space-y-4"></div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- FLOATING BACK TO TOP BUTTON -->
+  <button id="to-top-btn" onclick="scrollToTop()" class="hidden fixed bottom-20 right-4 bg-theme-dark text-theme-mint px-3.5 py-2.5 rounded-full shadow-lg z-40 text-xs font-bold transition hover:scale-105 border border-theme-mint/30">
+    <span id="txt-back-top" data-i18n="backToTop">⬆ 回頂部</span>
+  </button>
+
+  <!-- BOTTOM MOBILE NAVIGATION BAR -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200/60 py-2.5 px-4 shadow-lg z-50">
+    <div class="max-w-md mx-auto flex justify-around">
+      <button onclick="switchView('home')" class="nav-btn flex flex-col items-center text-theme-dark transition" data-target="home">
+        <span class="text-lg">🗺️</span>
+        <span class="text-[10px] font-bold mt-0.5" data-i18n="navHome">首頁地圖</span>
+      </button>
+      <button onclick="switchView('itinerary')" class="nav-btn flex flex-col items-center text-gray-400 hover:text-theme-dark transition" data-target="itinerary">
+        <span class="text-lg">📅</span>
+        <span class="text-[10px] font-bold mt-0.5" data-i18n="navItinerary">每日行程</span>
+      </button>
+      <button onclick="switchView('transport')" class="nav-btn flex flex-col items-center text-gray-400 hover:text-theme-dark transition" data-target="transport">
+        <span class="text-lg">🚆</span>
+        <span class="text-[10px] font-bold mt-0.5" data-i18n="navTransport">交通總覽</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- JAVASCRIPT LOGIC -->
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbwkkzV3SchqSGGomAxyRgPYfGq3BltpFbv_3u3MkCpUSGNW27zhH99YWHpMJhC24dRjUA/exec";
+
+    let db = { locations: [], activities: [], transports: [], links: [] };
+    let currentLang = 'tw'; // Default language set to Traditional Chinese ('tw')
+    let currentView = 'home';
+    let currentLocationParam = null;
+    let isAutoScrolling = false;
+    let lastScrollY = 0;
+
+    // Translation Dictionary
+    const i18n = {
+      tw: {
+        appTitle: "🇹🇼 2026 台灣旅遊行程",
+        appSub: "11月26日 - 12月05日 • 10天之旅",
+        navHome: "首頁地圖",
+        navItinerary: "每日行程",
+        navTransport: "交通總覽",
+        locationsHeader: "沿途城市與景點",
+        linksHeader: "🔗 實用旅遊連結",
+        noLinks: "暫無實用連結資料",
+        weatherTitle: "即時天氣預報",
+        weatherUpdated: "已更新",
+        backHome: "返回首頁地圖",
+        recommendations: "推薦景點與美食：",
+        hotelLabel: "入住飯店：",
+        hotelLink: "🔗 查看飯店 / 導航連結 →",
+        noActivities: "今日無額外活動記錄",
+        noTransport: "今日無特殊交通轉乘記錄",
+        openMaps: "📍 開啟 Google Maps 導航 →",
+        mapTitle: "🗺️ 台灣環島路線圖",
+        mapSub: "點擊標籤查看城市細節",
+        transportPageTitle: "完整交通行程表",
+        backToTop: "⬆ 回頂部",
+        pins: {
+          taipei: "台北", jiufen: "九份", beitou: "北投",
+          hualien: "花蓮", tainan: "臺南", kaohsiung: "高雄", kenting: "墾丁"
+        }
+      },
+      en: {
+        appTitle: "🇹🇼 Taiwan Trip 2026",
+        appSub: "Nov 26 - Dec 05 • 10 Days",
+        navHome: "Map",
+        navItinerary: "Itinerary",
+        navTransport: "Transport",
+        locationsHeader: "Trip Destinations",
+        linksHeader: "🔗 Useful Travel Links",
+        noLinks: "No useful links available.",
+        weatherTitle: "Live Weather Forecast",
+        weatherUpdated: "Updated",
+        backHome: "Back to Map",
+        recommendations: "Recommendations:",
+        hotelLabel: "Hotel Stay:",
+        hotelLink: "🔗 View Hotel / Map Link →",
+        noActivities: "No activities scheduled for this day.",
+        noTransport: "No transport legs scheduled for this day.",
+        openMaps: "📍 Open Google Maps →",
+        mapTitle: "🗺️ Interactive Taiwan Route",
+        mapSub: "Tap a pin to jump to city details",
+        transportPageTitle: "Complete Transport Schedule",
+        backToTop: "⬆ Top",
+        pins: {
+          taipei: "Taipei", jiufen: "Jiufen", beitou: "Beitou",
+          hualien: "Hualien", tainan: "Tainan", kaohsiung: "Kaohsiung", kenting: "Kenting"
+        }
+      }
+    };
+
+    function formatTimeString(timeStr) {
+      if (!timeStr) return '';
+      let cleaned = String(timeStr).replace(/1899-12-30/g, '').trim();
+      return cleaned || '--:--';
+    }
+
+    function translateTimeBlock(timeStr) {
+      if (!timeStr) return '';
+      let cleaned = formatTimeString(timeStr);
+      if (currentLang === 'tw') {
+        if (cleaned.toLowerCase() === 'morning') return '上午';
+        if (cleaned.toLowerCase() === 'afternoon') return '下午';
+        if (cleaned.toLowerCase() === 'night') return '晚上';
+      }
+      return cleaned;
+    }
+
+    function getField(item, baseName) {
+      if (!item) return '';
+      const key = `${baseName}_${currentLang}`;
+      return item[key] || item[`${baseName}_tw`] || item[`${baseName}_en`] || item[baseName] || '';
+    }
+
+    async function initApp() {
+      if (API_URL.includes("YOUR_GOOGLE_APPS_SCRIPT_URL")) {
+        document.getElementById('loading-state').classList.add('hidden');
+        document.getElementById('error-state').classList.remove('hidden');
+        document.getElementById('error-message').innerText = "Please replace API_URL in index.html with your actual Google Apps Script Web App URL.";
+        return;
+      }
+
+      try {
+        const response = await fetch(API_URL);
+        const data = await response.json();
+        db.locations = data.locations || [];
+        db.activities = data.activities || [];
+        db.transports = data.transports || [];
+        db.links = data.links || [];
+
+        document.getElementById('loading-state').classList.add('hidden');
+        document.getElementById('app-content').classList.remove('hidden');
+
+        fetchWeatherForAllLocations();
+        renderApp();
+        setupScrollObservers();
+        setupScrollBehaviors();
+      } catch (err) {
+        console.error(err);
+        document.getElementById('loading-state').classList.add('hidden');
+        document.getElementById('error-state').classList.remove('hidden');
+      }
+    }
+
+    function toggleLanguage() {
+      currentLang = currentLang === 'tw' ? 'en' : 'tw';
+      document.getElementById('lang-btn-text').innerText = currentLang === 'tw' ? 'EN / 繁中' : '繁中 / EN';
+      
+      document.getElementById('app-header-title').innerText = i18n[currentLang].appTitle;
+      document.getElementById('app-header-sub').innerText = i18n[currentLang].appSub;
+
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (i18n[currentLang][key]) el.innerText = i18n[currentLang][key];
+      });
+
+      document.getElementById('txt-map-title').innerText = i18n[currentLang].mapTitle;
+      document.getElementById('txt-map-sub').innerText = i18n[currentLang].mapSub;
+      
+      document.querySelectorAll('[data-map-pin]').forEach(el => {
+        const pinKey = el.getAttribute('data-map-pin');
+        if (i18n[currentLang].pins[pinKey]) {
+          el.innerText = i18n[currentLang].pins[pinKey];
+        }
+      });
+
+      fetchWeatherForAllLocations();
+      renderApp();
+    }
+
+    function switchView(viewName, param = null) {
+      currentView = viewName;
+      if (viewName === 'location-detail' && param) {
+        currentLocationParam = param;
+      }
+      
+      document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+      
+      if (viewName === 'home') {
+        document.getElementById('view-home').classList.remove('hidden');
+        renderHome();
+      } else if (viewName === 'itinerary') {
+        document.getElementById('view-itinerary').classList.remove('hidden');
+        renderItineraryContinuous();
+        if (param) scrollToDay(param, 'itin');
+      } else if (viewName === 'transport') {
+        document.getElementById('view-transport').classList.remove('hidden');
+        renderTransportContinuous();
+        if (param) scrollToDay(param, 'trans');
+      } else if (viewName === 'location-detail') {
+        document.getElementById('view-location-detail').classList.remove('hidden');
+        renderLocationDetail(currentLocationParam);
+      }
+
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        const target = btn.getAttribute('data-target');
+        if (target === viewName) {
+          btn.classList.add('text-theme-dark');
+          btn.classList.remove('text-gray-400');
+        } else {
+          btn.classList.remove('text-theme-dark');
+          btn.classList.add('text-gray-400');
+        }
+      });
+
+      window.scrollTo(0, 0);
+    }
+
+    function renderApp() {
+      if (currentView === 'home') renderHome();
+      else if (currentView === 'itinerary') renderItineraryContinuous();
+      else if (currentView === 'transport') renderTransportContinuous();
+      else if (currentView === 'location-detail') renderLocationDetail(currentLocationParam);
+    }
+
+    // ================= RENDER HOME =================
+    function renderHome() {
+      document.getElementById('txt-locations-header').innerText = i18n[currentLang].locationsHeader;
+      document.getElementById('txt-weather-title').innerText = i18n[currentLang].weatherTitle;
+      document.getElementById('txt-links-header').innerText = i18n[currentLang].linksHeader;
+
+      // 1. Render Locations List
+      const container = document.getElementById('home-locations-list');
+      container.innerHTML = '';
+
+      db.locations.forEach(loc => {
+        const card = document.createElement('div');
+        card.className = "bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 flex items-center space-x-3.5 active:scale-[0.99] transition cursor-pointer";
+        card.onclick = () => switchView('location-detail', loc.location_id);
+        
+        card.innerHTML = `
+          <img src="${loc.cover_image || 'https://images.unsplash.com/photo-1508248467877-a5dbec011bf6'}" class="w-16 h-16 rounded-xl object-cover shrink-0" alt="${getField(loc, 'city_name')}">
+          <div class="flex-1 min-w-0">
+            <div class="flex justify-between items-baseline mb-0.5">
+              <h3 class="font-bold text-theme-dark text-sm truncate">${getField(loc, 'city_name')}</h3>
+              <span class="text-[10px] text-gray-500 font-semibold">${getField(loc, 'stay_dates')}</span>
+            </div>
+            <p class="text-[11px] text-gray-600 line-clamp-1">${getField(loc, 'summary')}</p>
+          </div>
+          <span class="text-gray-300 text-sm font-bold">›</span>
+        `;
+        container.appendChild(card);
+      });
+
+      // 2. Render Categorized Useful Links
+      renderUsefulLinks();
+    }
+
+    function renderUsefulLinks() {
+      const linksContainer = document.getElementById('home-links-list');
+      linksContainer.innerHTML = '';
+
+      if (!db.links || db.links.length === 0) {
+        linksContainer.innerHTML = `<p class="text-xs text-gray-400 text-center py-4 bg-white rounded-2xl border border-dashed border-gray-200">${i18n[currentLang].noLinks}</p>`;
+        return;
+      }
+
+      // Group links by localized category name while preserving sheet order
+      const grouped = {};
+      const categoryOrder = [];
+
+      db.links.forEach(link => {
+        const catName = getField(link, 'category') || (currentLang === 'tw' ? '其他資源' : 'General');
+        if (!grouped[catName]) {
+          grouped[catName] = [];
+          categoryOrder.push(catName);
+        }
+        grouped[catName].push(link);
+      });
+
+      categoryOrder.forEach(catName => {
+        const catBlock = document.createElement('div');
+        catBlock.className = "bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 space-y-2.5";
+
+        const itemsHtml = grouped[catName].map(item => {
+          const title = getField(item, 'title');
+          const desc = getField(item, 'desc');
+          const icon = item.icon || '🔗';
+          const url = item.url || '#';
+
+          return `
+            <a href="${url}" target="_blank" rel="noopener noreferrer" class="flex items-center justify-between p-2.5 rounded-xl bg-theme-bg hover:bg-theme-mint/40 transition border border-gray-100/80 group">
+              <div class="flex items-center space-x-3 min-w-0">
+                <span class="text-lg shrink-0">${icon}</span>
+                <div class="min-w-0">
+                  <div class="text-xs font-bold text-theme-dark truncate group-hover:underline">${title}</div>
+                  ${desc ? `<div class="text-[11px] text-gray-500 truncate">${desc}</div>` : ''}
+                </div>
+              </div>
+              <span class="text-theme-dark/50 group-hover:text-theme-dark text-xs font-bold pl-2 shrink-0">↗</span>
+            </a>
+          `;
+        }).join('');
+
+        catBlock.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-extrabold text-theme-dark bg-theme-mint/60 px-2.5 py-0.5 rounded-full">${catName}</span>
+            <span class="text-[10px] text-gray-400 font-semibold">${grouped[catName].length}</span>
+          </div>
+          <div class="space-y-2">
+            ${itemsHtml}
+          </div>
+        `;
+
+        linksContainer.appendChild(catBlock);
+      });
+    }
+
+    // ================= RENDER ITINERARY =================
+    function renderItineraryContinuous() {
+      const pillsContainer = document.getElementById('itin-day-pills-container');
+      pillsContainer.innerHTML = '';
+      
+      for (let day = 1; day <= 10; day++) {
+        const sampleAct = db.activities.find(a => Number(a.day_number) === day);
+        const shortDate = sampleAct ? sampleAct.date.split('-').slice(1).join('/') : `Day ${day}`;
+
+        const pill = document.createElement('button');
+        pill.id = `pill-itin-${day}`;
+        pill.className = `itin-pill px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition border ${
+          day === 1 ? 'bg-theme-dark text-white border-theme-dark shadow-sm' : 'bg-white text-gray-600 border-gray-200'
+        }`;
+        pill.innerText = currentLang === 'tw' ? `第 ${day} 天 (${shortDate})` : `Day ${day} (${shortDate})`;
+        pill.onclick = () => scrollToDay(day, 'itin');
+        pillsContainer.appendChild(pill);
+      }
+
+      const listContainer = document.getElementById('continuous-itinerary-container');
+      listContainer.innerHTML = '';
+
+      for (let day = 1; day <= 10; day++) {
+        const dayActs = db.activities.filter(a => Number(a.day_number) === day);
+        const dayTrans = db.transports.filter(t => Number(t.day_number) === day);
+        const sampleDate = dayActs.length > 0 ? dayActs[0].date : (dayTrans.length > 0 ? dayTrans[0].date : '');
+
+        const daySection = document.createElement('div');
+        daySection.id = `itin-section-${day}`;
+        daySection.className = "itin-section scroll-mt-28 space-y-3 pb-4";
+
+        const dayTitleStr = currentLang === 'tw' ? `第 ${day} 天` : `Day ${day}`;
+        const countStr = currentLang === 'tw' ? `${dayActs.length} 活動項目` : `${dayActs.length} Activities`;
+
+        daySection.innerHTML = `
+          <div class="sticky top-[53px] z-30 flex justify-between items-center bg-white/95 backdrop-blur-md p-3 rounded-2xl border border-theme-mint shadow-xs">
+            <div>
+              <span class="text-[10px] font-bold text-theme-dark uppercase tracking-wider">${dayTitleStr}</span>
+              <h3 class="text-sm font-bold text-theme-dark">${sampleDate}</h3>
+            </div>
+            <span class="text-[10px] bg-theme-mint text-theme-dark px-2.5 py-1 rounded-full font-bold">${countStr}</span>
+          </div>
+
+          <div class="space-y-2.5">
+            ${dayActs.length === 0 ? `<p class="text-xs text-gray-400 text-center py-3 bg-white rounded-2xl border border-dashed border-gray-200">${i18n[currentLang].noActivities}</p>` : 
+              dayActs.map(act => `
+                <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 space-y-1.5">
+                  <div class="flex justify-between items-center">
+                    <span class="bg-theme-mint text-theme-dark text-[10px] font-extrabold px-2 py-0.5 rounded-md">${translateTimeBlock(act.time)}</span>
+                    <span class="bg-gray-100 text-gray-600 text-[10px] font-semibold px-2 py-0.5 rounded-md">${getField(act, 'category')}</span>
+                  </div>
+                  <h4 class="font-bold text-theme-dark text-sm leading-snug">${getField(act, 'title')}</h4>
+                  <p class="text-xs text-gray-600 leading-relaxed">${getField(act, 'details')}</p>
+                  ${act.maps_url ? `<a href="${act.maps_url}" target="_blank" class="inline-block text-[11px] text-theme-dark font-bold hover:underline pt-0.5">${i18n[currentLang].openMaps}</a>` : ''}
+                </div>
+              `).join('')
+            }
+          </div>
+        `;
+        listContainer.appendChild(daySection);
+      }
+    }
+
+    // ================= RENDER TRANSPORT =================
+    function renderTransportContinuous() {
+      const pillsContainer = document.getElementById('trans-day-pills-container');
+      pillsContainer.innerHTML = '';
+      
+      for (let day = 1; day <= 10; day++) {
+        const sampleTrans = db.transports.find(t => Number(t.day_number) === day);
+        const shortDate = sampleTrans ? sampleTrans.date.split('-').slice(1).join('/') : `Day ${day}`;
+
+        const pill = document.createElement('button');
+        pill.id = `pill-trans-${day}`;
+        pill.className = `trans-pill px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition border ${
+          day === 1 ? 'bg-theme-dark text-white border-theme-dark shadow-sm' : 'bg-white text-gray-600 border-gray-200'
+        }`;
+        pill.innerText = currentLang === 'tw' ? `第 ${day} 天 (${shortDate})` : `Day ${day} (${shortDate})`;
+        pill.onclick = () => scrollToDay(day, 'trans');
+        pillsContainer.appendChild(pill);
+      }
+
+      const container = document.getElementById('continuous-transport-container');
+      container.innerHTML = '';
+
+      for (let day = 1; day <= 10; day++) {
+        const dayTrans = db.transports.filter(t => Number(t.day_number) === day);
+        const sampleDate = dayTrans.length > 0 ? dayTrans[0].date : '';
+
+        const transSection = document.createElement('div');
+        transSection.id = `trans-section-${day}`;
+        transSection.className = "trans-section scroll-mt-28 space-y-3 pb-4";
+
+        const dayTitleStr = currentLang === 'tw' ? `第 ${day} 天` : `Day ${day}`;
+        const transCountStr = currentLang === 'tw' ? `${dayTrans.length} 交通班次` : `${dayTrans.length} Transit Legs`;
+
+        transSection.innerHTML = `
+          <div class="sticky top-[53px] z-30 flex justify-between items-center bg-white/95 backdrop-blur-md p-3 rounded-2xl border border-theme-gold/60 shadow-xs">
+            <div>
+              <span class="text-[10px] font-bold text-theme-dark uppercase tracking-wider">${dayTitleStr}</span>
+              <h3 class="text-sm font-bold text-theme-dark">${sampleDate}</h3>
+            </div>
+            <span class="text-[10px] bg-theme-gold/30 text-theme-dark px-2.5 py-1 rounded-full font-bold">${transCountStr}</span>
+          </div>
+
+          <div class="space-y-2.5">
+            ${dayTrans.length === 0 ? `<p class="text-xs text-gray-400 text-center py-3 bg-white rounded-2xl border border-dashed border-gray-200">${i18n[currentLang].noTransport}</p>` :
+              dayTrans.map(tr => {
+                const dep = formatTimeString(tr.dep_time);
+                const arr = formatTimeString(tr.arr_time);
+                const timeDisplay = (dep && arr) ? `${dep} - ${arr}` : (dep || arr || '');
+                return `
+                  <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 space-y-2">
+                    <div class="flex justify-between items-center text-xs">
+                      <span class="bg-theme-mint text-theme-dark px-2.5 py-0.5 rounded-full font-bold">${getField(tr, 'mode')}</span>
+                      ${timeDisplay ? `<span class="text-theme-dark font-bold">⏰ ${timeDisplay}</span>` : ''}
+                    </div>
+                    <div class="text-sm font-bold text-theme-dark">
+                      ${getField(tr, 'from_location')} ➔ ${getField(tr, 'to_location')}
+                    </div>
+                    <p class="text-xs text-gray-600 bg-theme-bg p-2.5 rounded-xl border border-gray-100">${getField(tr, 'notes')}</p>
+                  </div>
+                `;
+              }).join('')
+            }
+          </div>
+        `;
+        container.appendChild(transSection);
+      }
+    }
+
+    function scrollToDay(dayNumber, prefix) {
+      isAutoScrolling = true;
+      const target = document.getElementById(`${prefix}-section-${dayNumber}`);
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        updateActivePill(dayNumber, prefix);
+      }
+      setTimeout(() => { isAutoScrolling = false; }, 800);
+    }
+
+    function updateActivePill(dayNumber, prefix) {
+      document.querySelectorAll(`.${prefix}-pill`).forEach(pill => {
+        pill.classList.remove('bg-theme-dark', 'text-white', 'border-theme-dark', 'shadow-sm');
+        pill.classList.add('bg-white', 'text-gray-600', 'border-gray-200');
+      });
+      const activePill = document.getElementById(`pill-${prefix}-${dayNumber}`);
+      if (activePill) {
+        activePill.classList.remove('bg-white', 'text-gray-600', 'border-gray-200');
+        activePill.classList.add('bg-theme-dark', 'text-white', 'border-theme-dark', 'shadow-sm');
+        activePill.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+    }
+
+    function setupScrollObservers() {
+      const itinObserver = new IntersectionObserver((entries) => {
+        if (isAutoScrolling || currentView !== 'itinerary') return;
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const dayId = entry.target.id.replace('itin-section-', '');
+            updateActivePill(Number(dayId), 'itin');
+          }
+        });
+      }, { threshold: 0.2 });
+      document.querySelectorAll('.itin-section').forEach(sec => itinObserver.observe(sec));
+
+      const transObserver = new IntersectionObserver((entries) => {
+        if (isAutoScrolling || currentView !== 'transport') return;
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const dayId = entry.target.id.replace('trans-section-', '');
+            updateActivePill(Number(dayId), 'trans');
+          }
+        });
+      }, { threshold: 0.2 });
+      document.querySelectorAll('.trans-section').forEach(sec => transObserver.observe(sec));
+    }
+
+    function setupScrollBehaviors() {
+      window.addEventListener('scroll', () => {
+        const currentScrollY = window.scrollY;
+        const itinBar = document.getElementById('itin-day-pills-bar');
+        const transBar = document.getElementById('trans-day-pills-bar');
+        const toTopBtn = document.getElementById('to-top-btn');
+
+        if (currentScrollY > 400 && (currentView === 'itinerary' || currentView === 'transport')) {
+          toTopBtn.classList.remove('hidden');
+        } else {
+          toTopBtn.classList.add('hidden');
+        }
+
+        if (currentScrollY > 100 && currentScrollY > lastScrollY) {
+          if (itinBar) itinBar.style.transform = 'translateY(-100%)';
+          if (transBar) transBar.style.transform = 'translateY(-100%)';
+        } else {
+          if (itinBar) itinBar.style.transform = 'translateY(0)';
+          if (transBar) transBar.style.transform = 'translateY(0)';
+        }
+        lastScrollY = currentScrollY;
+      });
+    }
+
+    function scrollToTop() {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // ================= RENDER LOCATION DETAIL =================
+    function renderLocationDetail(locationId) {
+      document.getElementById('txt-back-home').innerText = i18n[currentLang].backHome;
+      const loc = db.locations.find(l => l.location_id === locationId);
+      const container = document.getElementById('location-detail-container');
+      
+      if (!loc) {
+        container.innerHTML = `<p class="text-center text-gray-500">找不到地點詳細資訊。</p>`;
+        return;
+      }
+
+      const locActs = db.activities.filter(a => a.location_id === locationId);
+      const actHeaderStr = currentLang === 'tw' ? '預定行程與活動' : 'Scheduled Activities';
+      const noActStr = currentLang === 'tw' ? '此地點暫無排定活動。' : 'No specific activities listed for this location.';
+
+      container.innerHTML = `
+        <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+          <div class="relative h-44 bg-gray-200">
+            <img src="${loc.cover_image || 'https://images.unsplash.com/photo-1508248467877-a5dbec011bf6'}" class="w-full h-full object-cover" alt="${getField(loc, 'city_name')}">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex items-end p-4">
+              <div>
+                <span class="text-[10px] bg-theme-mint text-theme-dark px-2 py-0.5 rounded-full font-bold">${getField(loc, 'stay_dates')}</span>
+                <h2 class="text-white font-bold text-xl mt-1">${getField(loc, 'city_name')}</h2>
+              </div>
+            </div>
+          </div>
+          <div class="p-4 space-y-3">
+            <p class="text-xs text-gray-600 leading-relaxed">${getField(loc, 'summary')}</p>
+            <div class="bg-theme-mint/30 p-3 rounded-2xl border border-theme-mint/50 space-y-2">
+              <div>
+                <h4 class="text-xs font-bold text-theme-dark mb-0.5">${i18n[currentLang].hotelLabel}</h4>
+                <p class="text-xs text-gray-800 font-semibold">${getField(loc, 'hotel_name') || 'N/A'}</p>
+              </div>
+              ${loc.hotel_url ? `<a href="${loc.hotel_url}" target="_blank" class="inline-block text-[11px] text-theme-dark font-bold underline">${i18n[currentLang].hotelLink}</a>` : ''}
+              <div class="border-t border-theme-mint/40 pt-2 mt-2">
+                <h4 class="text-xs font-bold text-theme-dark mb-0.5">${i18n[currentLang].recommendations}</h4>
+                <p class="text-xs text-gray-700">${getField(loc, 'recommendations')}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-bold text-theme-dark uppercase tracking-wider mb-2.5 px-1">${actHeaderStr}</h3>
+          <div class="space-y-2.5">
+            ${locActs.length === 0 ? `<p class="text-xs text-gray-400 text-center py-4 bg-white rounded-2xl">${noActStr}</p>` : 
+              locActs.map(act => `
+                <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 space-y-1.5">
+                  <div class="flex justify-between items-center text-xs">
+                    <span class="bg-theme-mint text-theme-dark font-bold px-2 py-0.5 rounded-md">Day ${act.day_number} • ${translateTimeBlock(act.time)}</span>
+                    <span class="bg-gray-100 text-gray-600 font-semibold px-2 py-0.5 rounded-md">${getField(act, 'category')}</span>
+                  </div>
+                  <h4 class="font-bold text-theme-dark text-sm">${getField(act, 'title')}</h4>
+                  <p class="text-xs text-gray-600 leading-relaxed">${getField(act, 'details')}</p>
+                  ${act.maps_url ? `<a href="${act.maps_url}" target="_blank" class="inline-block text-[11px] text-theme-dark font-bold hover:underline pt-0.5">${i18n[currentLang].openMaps}</a>` : ''}
+                </div>
+              `).join('')
+            }
+          </div>
+        </div>
+      `;
+    }
+
+    // ================= LIVE WEATHER API =================
+    async function fetchWeatherForAllLocations() {
+      const container = document.getElementById('weather-widget-container');
+      container.innerHTML = '';
+
+      const targetCityIds = ['taipei', 'hualien', 'tainan', 'kaohsiung', 'kenting'];
+      const targetLocations = db.locations.filter(loc => targetCityIds.includes(loc.location_id));
+      const locationsToDisplay = targetLocations.length > 0 ? targetLocations : db.locations;
+
+      for (const loc of locationsToDisplay) {
+        if (!loc.latitude || !loc.longitude) continue;
+
+        try {
+          const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&current=temperature_2m,weathercode&timezone=Asia%2FTaipei`);
+          const data = await res.json();
+          const temp = data.current ? Math.round(data.current.temperature_2m) : '--';
+          const code = data.current ? data.current.weathercode : 0;
+          const weatherText = getWeatherEmojiAndDesc(code);
+
+          const card = document.createElement('div');
+          card.className = "bg-white/10 backdrop-blur-md p-1.5 rounded-xl text-center text-white border border-white/10 min-w-0";
+          const cityName = getField(loc, 'city_name').split('/')[0].trim();
+
+          card.innerHTML = `
+            <div class="text-[9px] font-bold truncate opacity-90">${cityName}</div>
+            <div class="text-sm my-0.5">${weatherText.emoji}</div>
+            <div class="text-[11px] font-extrabold">${temp}°C</div>
+          `;
+          container.appendChild(card);
+        } catch (e) {
+          console.error("Weather error", e);
+        }
+      }
+    }
+
+    function getWeatherEmojiAndDesc(code) {
+      if (code === 0) return { emoji: '☀️' };
+      if (code >= 1 && code <= 3) return { emoji: '⛅' };
+      if (code >= 45 && code <= 48) return { emoji: '🌫️' };
+      if (code >= 51 && code <= 67) return { emoji: '🌧️' };
+      if (code >= 80 && code <= 99) return { emoji: '⛈️' };
+      return { emoji: '🌤️' };
+    }
+
+    initApp();
+  </script>
+</body>
+</html>
